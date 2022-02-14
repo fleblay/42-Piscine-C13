@@ -6,7 +6,7 @@
 /*   By: fle-blay <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/11 17:30:32 by fle-blay          #+#    #+#             */
-/*   Updated: 2022/02/11 18:59:20 by fle-blay         ###   ########.fr       */
+/*   Updated: 2022/02/14 18:10:24 by fle-blay         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,8 +76,6 @@ int		ft_strcmp(void *s1, void *s2)
 
 void	btree_insert_data(t_btree **root, void *item, int (*cmpf)(void *, void *))
 {
-	t_btree	*index;
-
 	if (!root || !item || !cmpf)
 		return ;
 	if (*root == NULL)
@@ -87,19 +85,103 @@ void	btree_insert_data(t_btree **root, void *item, int (*cmpf)(void *, void *))
 	}
 	else
 	{
-		index = *root;
-		while (index)
-		{
-			printf("item : [%s] index->item [%s]\n", (char *)item, (char *)index->item);
-			if (cmpf(item, index->item) > 0)
-				index = index->left;
-			else
-				index = index->right;
-		}
-		printf("inserting : [%s]\n", (char *)item);
-		index = btree_create_node(item);
+		if (cmpf(item, (*root)->item) >= 0)
+			btree_insert_data(&(*root)->right, item, cmpf);
+		else
+			btree_insert_data(&(*root)->left, item, cmpf);
 	}
 }
+
+void	*btree_search_item(t_btree *root, void *data_ref, int (*cmpf)(void *, void *))
+{
+	void	*found;
+	int		res;
+	if (!root)
+		return (NULL);
+	found = btree_search_item(root->left, data_ref, cmpf);
+	if (found)
+		return (found);
+	res = cmpf(root->item, data_ref);
+	if (!res)
+		return (root->item);
+	found = btree_search_item(root->right, data_ref, cmpf);
+	if (found)
+		return (found);
+	return (NULL);
+}
+
+int	btree_level_count(t_btree *root)
+{
+	int	count_left;
+	int	count_right;
+
+	if (!root)
+		return (0);
+	count_left = btree_level_count(root->left);
+	count_right = btree_level_count(root->right);
+	if (count_left >= count_right)
+		return (count_left + 1);
+	return (count_right + 1);
+}
+// 
+
+void	btree_addlist_lvl(t_btree *root, int curr_level, int desired_level, t_btree **list)
+{
+	t_btree	*new_elem;
+	t_btree	*save;
+
+	if (!root)
+		return ;
+	if (curr_level == desired_level)
+	{
+		new_elem = btree_create_node(root->item);
+		if (!*list)
+			*list = new_elem;
+		else
+		{
+			save = *list;
+			while ((*list)->right)
+				*list = (*list)->right;
+			(*list)->right = new_elem;
+			*list = save;
+		}
+	}
+	btree_addlist_lvl(root->left, curr_level++, desired_level, list);
+	btree_addlist_lvl(root->right, curr_level++, desired_level, list);
+}
+
+/*
+t_btree	**btree_get_list_of_node_lvl(t_btree *root, int level)
+{
+	t_btree	*root_lvl;
+
+	root_lvl = NULL;
+	
+	apply infix avec un indice et un pointeur sur le debut de la liste chainee de nodes
+
+}
+
+void	btree_destroy_list_of_node(t_btree *root)
+{
+
+}
+
+void	btree_apply_by_level(t_btree *root, void (*applyf)(void *item, int current_level, int is_first_elem))
+{
+	int		i;
+	int		max;
+	t_btree	*start_curr_level;
+
+	if (!root)
+		return ;
+	i = 0;
+	max = btree_level_count(root);
+	while (i < max)
+	{
+
+	}
+}
+*/
 
 #include <string.h>
 
@@ -140,11 +222,36 @@ int	main(void)
 	printf("insert 5\n");
 	btree_insert_data(&root2, "5", ft_strcmp);
 	printf("insert 2\n");
+	btree_insert_data(&root2, "1", ft_strcmp);
+	printf("insert 7\n");
+	btree_insert_data(&root2, "7", ft_strcmp);
+	printf("insert 10\n");
+	btree_insert_data(&root2, "9", ft_strcmp);
+	printf("insert 8\n");
+	btree_insert_data(&root2, "8", ft_strcmp);
+	printf("insert 2\n");
 	btree_insert_data(&root2, "2", ft_strcmp);
 
 	printf("Parcours prefix : ");
 	btree_apply_prefix(root2, print_item);
 	printf("\n");
 
+	char *ret;
+
+	ret = btree_search_item(root2, "8", ft_strcmp);
+	printf("ret : [%s]\n", ret);
+
+	int	count;
+	count = btree_level_count(root2);
+	printf("biggest level : %d\n", count);
+
+	t_btree	*list;
+	list = NULL;
+	btree_addlist_lvl(root, 0, 1, &list);
+	while (list)
+	{
+		printf("content : %s\n", (char *)list->item);
+		list = list->right;
+	}
 	return (0);
 }
