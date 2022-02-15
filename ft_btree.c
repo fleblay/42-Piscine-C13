@@ -6,7 +6,7 @@
 /*   By: fle-blay <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/11 17:30:32 by fle-blay          #+#    #+#             */
-/*   Updated: 2022/02/14 18:10:24 by fle-blay         ###   ########.fr       */
+/*   Updated: 2022/02/15 10:52:59 by fle-blay         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,10 +79,7 @@ void	btree_insert_data(t_btree **root, void *item, int (*cmpf)(void *, void *))
 	if (!root || !item || !cmpf)
 		return ;
 	if (*root == NULL)
-	{
 		*root = btree_create_node(item);
-		return ;
-	}
 	else
 	{
 		if (cmpf(item, (*root)->item) >= 0)
@@ -123,15 +120,17 @@ int	btree_level_count(t_btree *root)
 		return (count_left + 1);
 	return (count_right + 1);
 }
-// 
+
+//
 
 void	btree_addlist_lvl(t_btree *root, int curr_level, int desired_level, t_btree **list)
 {
 	t_btree	*new_elem;
 	t_btree	*save;
 
-	if (!root)
+	if (!root || curr_level > desired_level)
 		return ;
+	btree_addlist_lvl(root->left, curr_level + 1, desired_level, list);
 	if (curr_level == desired_level)
 	{
 		new_elem = btree_create_node(root->item);
@@ -146,24 +145,24 @@ void	btree_addlist_lvl(t_btree *root, int curr_level, int desired_level, t_btree
 			*list = save;
 		}
 	}
-	btree_addlist_lvl(root->left, curr_level++, desired_level, list);
-	btree_addlist_lvl(root->right, curr_level++, desired_level, list);
+	btree_addlist_lvl(root->right, curr_level + 1, desired_level, list);
 }
 
-/*
-t_btree	**btree_get_list_of_node_lvl(t_btree *root, int level)
+void	btree_destroy(t_btree *root)
 {
-	t_btree	*root_lvl;
-
-	root_lvl = NULL;
-	
-	apply infix avec un indice et un pointeur sur le debut de la liste chainee de nodes
-
+	if (!root)
+		return ;
+	btree_destroy(root->left);
+	btree_destroy(root->right);
+	free(root);
 }
 
-void	btree_destroy_list_of_node(t_btree *root)
+void	printer_lvl(void *item, int current_level, int is_first_elem)
 {
-
+	if (is_first_elem)
+		printf("\nDebut de ligne lvl %d :", current_level);
+	else
+		printf("[%s]", (char *)item);
 }
 
 void	btree_apply_by_level(t_btree *root, void (*applyf)(void *item, int current_level, int is_first_elem))
@@ -171,6 +170,7 @@ void	btree_apply_by_level(t_btree *root, void (*applyf)(void *item, int current_
 	int		i;
 	int		max;
 	t_btree	*start_curr_level;
+	t_btree	*save;
 
 	if (!root)
 		return ;
@@ -178,10 +178,20 @@ void	btree_apply_by_level(t_btree *root, void (*applyf)(void *item, int current_
 	max = btree_level_count(root);
 	while (i < max)
 	{
-
+		start_curr_level = NULL;
+		btree_addlist_lvl(root, 0, i, &start_curr_level);
+		save = start_curr_level;
+		if (start_curr_level)
+			applyf(start_curr_level->item, i, 1);
+		while (start_curr_level)
+		{
+			applyf(start_curr_level->item, i, 0);
+			start_curr_level = start_curr_level->right;
+		}
+		btree_destroy(save);
+		i++;
 	}
 }
-*/
 
 #include <string.h>
 
@@ -245,13 +255,13 @@ int	main(void)
 	count = btree_level_count(root2);
 	printf("biggest level : %d\n", count);
 
-	t_btree	*list;
-	list = NULL;
-	btree_addlist_lvl(root, 0, 1, &list);
-	while (list)
-	{
-		printf("content : %s\n", (char *)list->item);
-		list = list->right;
-	}
+	btree_apply_by_level(root, &printer_lvl);
+	printf("\n");
+	btree_apply_by_level(root2, &printer_lvl);
+	printf("\n");
+
+	btree_destroy(root);
+	btree_destroy(root2);
+
 	return (0);
 }
