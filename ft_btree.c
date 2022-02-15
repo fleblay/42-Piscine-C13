@@ -6,7 +6,7 @@
 /*   By: fle-blay <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/11 17:30:32 by fle-blay          #+#    #+#             */
-/*   Updated: 2022/02/15 13:20:46 by fle-blay         ###   ########.fr       */
+/*   Updated: 2022/02/15 18:34:08 by fle-blay         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -175,7 +175,7 @@ int	ft_btree_addlist_lvl(t_btree *root, int curr_level,
 void	printer_lvl(void *item, int current_level, int is_first_elem)
 {
 	if (is_first_elem)
-		printf("\nDebut de ligne lvl %d :", current_level);
+		printf("\nDebut de ligne lvl %d : [%s]", current_level, (char *)item);
 	else
 		printf("[%s]", (char *)item);
 }
@@ -184,20 +184,21 @@ int	ft_btree_apply_by_level(t_btree *root,
 	void (*applyf)(void *item, int current_level, int is_first_elem))
 {
 	int		i;
-	int		max;
 	t_btree	*start_curr_level;
 	t_btree	*save;
 
 	i = 0;
-	max = ft_btree_level_count(root);
-	while (i < max)
+	while (i < ft_btree_level_count(root))
 	{
 		start_curr_level = NULL;
 		if (!ft_btree_addlist_lvl(root, 0, i, &start_curr_level))
 			return (ft_btree_destroy(start_curr_level), 0);
 		save = start_curr_level;
 		if (start_curr_level)
+		{
 			applyf(start_curr_level->item, i, 1);
+			start_curr_level = start_curr_level->right;
+		}
 		while (start_curr_level)
 		{
 			applyf(start_curr_level->item, i, 0);
@@ -209,55 +210,92 @@ int	ft_btree_apply_by_level(t_btree *root,
 	return (1);
 }
 
-void	printer_lvl_node(t_btree *root, int current_level, int is_first_elem)
+t_btree	*ft_btree_search_node(t_btree *root, void *data_ref,
+	int (*cmpf)(void *, void *))
+{
+	t_btree	*found;
+	int		res;
+
+	if (!root)
+		return (NULL);
+	found = ft_btree_search_node(root->left, data_ref, cmpf);
+	if (found)
+		return (found);
+	res = cmpf(root->item, data_ref);
+	if (!res)
+		return (root);
+	found = ft_btree_search_node(root->right, data_ref, cmpf);
+	if (found)
+		return (found);
+	return (NULL);
+}
+
+void	printer_lvl_node(t_btree *root, t_btree *list, int current_level, int is_first_elem)
 {
 	int	left_space;
 	int	right_space;
+	t_btree	*node_in_real_tree;
+	int	offset;
 
-	left_space = ft_btree_level_count(root->left);
-	right_space = ft_btree_level_count(root->right);
+	offset = ft_btree_level_count(root) - current_level;
+	node_in_real_tree = ft_btree_search_node(root, list->item, ft_strcmp);
+	if (!node_in_real_tree)
+		return ;
+	right_space = (ft_btree_level_count(node_in_real_tree->right) + 1) * offset;
+	left_space = (ft_btree_level_count(node_in_real_tree->left) + 1)* offset;
 	if (is_first_elem)
-	{
-		//to add spaces
 		printf("\nDebut de ligne lvl %d :", current_level);
-	}
-	else
-	{
-		while (left_space--)
-			printf(" ");
-		printf("[%s]", (char *)root->item);
-		while (right_space--)
-			printf(" ");
-	}
+	while (left_space-- > 0)
+		printf(" ");
+	printf("[%s]", (char *)list->item);
+	while (right_space-- > 0)
+		printf(" ");
 }
 
 int	ft_btree_apply_by_level_to_node(t_btree *root,
-	void (*applyf)(t_btree *root, int current_level, int is_first_elem))
+	void (*applyf)(t_btree *root, t_btree *list, int current_level, int is_first_elem))
 {
 	int		i;
-	int		max;
 	t_btree	*start_curr_level;
 	t_btree	*save;
 
 	i = 0;
-	max = ft_btree_level_count(root);
-	while (i < max)
+	while (i < ft_btree_level_count(root))
 	{
 		start_curr_level = NULL;
 		if (!ft_btree_addlist_lvl(root, 0, i, &start_curr_level))
 			return (ft_btree_destroy(start_curr_level), 0);
 		save = start_curr_level;
 		if (start_curr_level)
-			applyf(start_curr_level, i, 1);
+		{
+			applyf(root, start_curr_level, i, 1);
+			start_curr_level = start_curr_level->right;
+		}
 		while (start_curr_level)
 		{
-			applyf(start_curr_level, i, 0);
+			applyf(root, start_curr_level, i, 0);
 			start_curr_level = start_curr_level->right;
 		}
 		ft_btree_destroy(save);
 		i++;
 	}
 	return (1);
+}
+
+void	ft_btree_print(t_btree *root, int lvl)
+{
+	int	i;
+	i = 0;
+	if (!root)
+		return ;
+	ft_btree_print(root->left, lvl + 1);
+	while (i < lvl)
+	{
+		printf("  ");
+		i++;
+	}
+	printf("%s\n", (char *)(root->item));
+	ft_btree_print(root->right, lvl + 1);
 }
 
 #include <string.h>
@@ -329,9 +367,14 @@ int	main(void)
 
 	ft_btree_apply_by_level_to_node(root, &printer_lvl_node);
 	printf("\n");
+	ft_btree_apply_by_level_to_node(root2, &printer_lvl_node);
+	printf("\n");
+
+	ft_btree_print(root, 0);
+	printf("\n");
+	ft_btree_print(root2, 0);
 
 	ft_btree_destroy(root);
 	ft_btree_destroy(root2);
-
 	return (0);
 }
