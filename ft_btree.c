@@ -6,7 +6,7 @@
 /*   By: fle-blay <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/11 17:30:32 by fle-blay          #+#    #+#             */
-/*   Updated: 2022/02/15 10:52:59 by fle-blay         ###   ########.fr       */
+/*   Updated: 2022/02/15 12:15:18 by fle-blay         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,9 @@ t_btree	*btree_create_node(void *item)
 	new = (t_btree *)malloc(sizeof(t_btree));
 	if (!new)
 		return (NULL);
-	*new = (t_btree){.left = NULL, .right = NULL, .item = item};
+	new->item = item;
+	new->right = NULL;
+	new->left = NULL;
 	return (new);
 }
 
@@ -74,18 +76,21 @@ int		ft_strcmp(void *s1, void *s2)
 	return (str1[i] - str2[i]);
 }
 
-void	btree_insert_data(t_btree **root, void *item, int (*cmpf)(void *, void *))
+int	btree_insert_data(t_btree **root, void *item, int (*cmpf)(void *, void *))
 {
-	if (!root || !item || !cmpf)
-		return ;
 	if (*root == NULL)
+	{
 		*root = btree_create_node(item);
+		if (!*root)
+			return (0);
+		return (1);
+	}
 	else
 	{
 		if (cmpf(item, (*root)->item) >= 0)
-			btree_insert_data(&(*root)->right, item, cmpf);
+			return (btree_insert_data(&(*root)->right, item, cmpf));
 		else
-			btree_insert_data(&(*root)->left, item, cmpf);
+			return (btree_insert_data(&(*root)->left, item, cmpf));
 	}
 }
 
@@ -121,33 +126,6 @@ int	btree_level_count(t_btree *root)
 	return (count_right + 1);
 }
 
-//
-
-void	btree_addlist_lvl(t_btree *root, int curr_level, int desired_level, t_btree **list)
-{
-	t_btree	*new_elem;
-	t_btree	*save;
-
-	if (!root || curr_level > desired_level)
-		return ;
-	btree_addlist_lvl(root->left, curr_level + 1, desired_level, list);
-	if (curr_level == desired_level)
-	{
-		new_elem = btree_create_node(root->item);
-		if (!*list)
-			*list = new_elem;
-		else
-		{
-			save = *list;
-			while ((*list)->right)
-				*list = (*list)->right;
-			(*list)->right = new_elem;
-			*list = save;
-		}
-	}
-	btree_addlist_lvl(root->right, curr_level + 1, desired_level, list);
-}
-
 void	btree_destroy(t_btree *root)
 {
 	if (!root)
@@ -155,6 +133,38 @@ void	btree_destroy(t_btree *root)
 	btree_destroy(root->left);
 	btree_destroy(root->right);
 	free(root);
+}
+
+//
+
+void	add_node_to_right(t_btree *list, t_btree *new_elem)
+{
+	while (list->right)
+		list = list->right;
+	list->right = new_elem;
+}
+
+int	btree_addlist_lvl(t_btree *root, int curr_level, int desired_level, t_btree **list)
+{
+	t_btree	*new_elem;
+
+	if (!root || curr_level > desired_level)
+		return (1);
+	if (!btree_addlist_lvl(root->left, curr_level + 1, desired_level, list))
+		return (0);
+	if (curr_level == desired_level)
+	{
+		new_elem = btree_create_node(root->item);
+		if (!new_elem)
+			return (btree_destroy(*list), 0);
+		if (!*list)
+			*list = new_elem;
+		else
+			add_node_to_right(*list, new_elem);
+	}
+	if (!btree_addlist_lvl(root->right, curr_level + 1, desired_level, list))
+		return (0);
+	return (1);
 }
 
 void	printer_lvl(void *item, int current_level, int is_first_elem)
@@ -165,21 +175,20 @@ void	printer_lvl(void *item, int current_level, int is_first_elem)
 		printf("[%s]", (char *)item);
 }
 
-void	btree_apply_by_level(t_btree *root, void (*applyf)(void *item, int current_level, int is_first_elem))
+int	btree_apply_by_level(t_btree *root, void (*applyf)(void *item, int current_level, int is_first_elem))
 {
 	int		i;
 	int		max;
 	t_btree	*start_curr_level;
 	t_btree	*save;
 
-	if (!root)
-		return ;
 	i = 0;
 	max = btree_level_count(root);
 	while (i < max)
 	{
 		start_curr_level = NULL;
-		btree_addlist_lvl(root, 0, i, &start_curr_level);
+		if (!btree_addlist_lvl(root, 0, i, &start_curr_level))
+			return (btree_destroy(start_curr_level), 0);
 		save = start_curr_level;
 		if (start_curr_level)
 			applyf(start_curr_level->item, i, 1);
@@ -191,6 +200,7 @@ void	btree_apply_by_level(t_btree *root, void (*applyf)(void *item, int current_
 		btree_destroy(save);
 		i++;
 	}
+	return (1);
 }
 
 #include <string.h>
@@ -228,19 +238,19 @@ int	main(void)
 	t_btree	*root2;
 	root2 = NULL;
 	printf("insert 4\n");
-	btree_insert_data(&root2, "4", ft_strcmp);
+	printf("insert result : %d\n", btree_insert_data(&root2, "4", ft_strcmp));
 	printf("insert 5\n");
-	btree_insert_data(&root2, "5", ft_strcmp);
-	printf("insert 2\n");
-	btree_insert_data(&root2, "1", ft_strcmp);
+	printf("insert result : %d\n", btree_insert_data(&root2, "5", ft_strcmp));
+	printf("insert 1\n");
+	printf("insert result : %d\n", btree_insert_data(&root2, "1", ft_strcmp));
 	printf("insert 7\n");
-	btree_insert_data(&root2, "7", ft_strcmp);
-	printf("insert 10\n");
-	btree_insert_data(&root2, "9", ft_strcmp);
+	printf("insert result : %d\n", btree_insert_data(&root2, "7", ft_strcmp));
+	printf("insert 9\n");
+	printf("insert result : %d\n", btree_insert_data(&root2, "9", ft_strcmp));
 	printf("insert 8\n");
-	btree_insert_data(&root2, "8", ft_strcmp);
+	printf("insert result : %d\n", btree_insert_data(&root2, "8", ft_strcmp));
 	printf("insert 2\n");
-	btree_insert_data(&root2, "2", ft_strcmp);
+	printf("insert result : %d\n", btree_insert_data(&root2, "2", ft_strcmp));
 
 	printf("Parcours prefix : ");
 	btree_apply_prefix(root2, print_item);
@@ -255,9 +265,9 @@ int	main(void)
 	count = btree_level_count(root2);
 	printf("biggest level : %d\n", count);
 
-	btree_apply_by_level(root, &printer_lvl);
+	printf("\nret printer root : %d\n", btree_apply_by_level(root, &printer_lvl));
 	printf("\n");
-	btree_apply_by_level(root2, &printer_lvl);
+	printf("\nret printer root2 : %d\n", btree_apply_by_level(root2, &printer_lvl));
 	printf("\n");
 
 	btree_destroy(root);
