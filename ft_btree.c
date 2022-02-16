@@ -6,7 +6,7 @@
 /*   By: fle-blay <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/11 17:30:32 by fle-blay          #+#    #+#             */
-/*   Updated: 2022/02/15 18:34:08 by fle-blay         ###   ########.fr       */
+/*   Updated: 2022/02/16 10:25:13 by fle-blay         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -282,20 +282,75 @@ int	ft_btree_apply_by_level_to_node(t_btree *root,
 	return (1);
 }
 
-void	ft_btree_print(t_btree *root, int lvl)
+int	ft_btree_node_count(t_btree *root)
 {
-	int	i;
-	i = 0;
+	int	count_left;
+	int	count_right;
+
 	if (!root)
-		return ;
-	ft_btree_print(root->left, lvl + 1);
+		return (0);
+	count_left = ft_btree_node_count(root->left);
+	count_right = ft_btree_node_count(root->right);
+	return (count_right + count_left + 1);
+}
+
+static char	**create_sheet(t_btree *root)
+{
+	int		size;
+	char	**sheet;
+
+	size = ft_btree_node_count(root);
+	sheet = (char **)malloc((size + 1) * sizeof(char *));
+	if (!sheet)
+		return (NULL);
+	while (size > -1)
+	{
+		sheet[size] = NULL;
+		size--;
+	}
+	return (sheet);
+}
+
+static void	insert_end(char **sheet, int size_sheet, char *to_insert, int lvl)
+{
+	int	last_index;
+	int	i;
+
+	i = 0;
+	last_index = size_sheet - 1;
+	while (last_index >= 0 && sheet[last_index])
+		last_index--;
+
 	while (i < lvl)
 	{
-		printf("  ");
 		i++;
 	}
-	printf("%s\n", (char *)(root->item));
-	ft_btree_print(root->right, lvl + 1);
+	sheet[last_index] = to_insert;
+}
+
+void	fill_sheet(t_btree *root, int lvl, char **sheet, int size_sheet)
+{
+
+	if (!root)
+		return ;
+	fill_sheet(root->left, lvl + 1, sheet, size_sheet);
+	insert_end(sheet, size_sheet, (char *)(root->item), lvl);
+	fill_sheet(root->right, lvl + 1, sheet, size_sheet);
+}
+
+void ft_btree_print(t_btree *root)
+{
+	char	**sheet;
+
+	sheet = create_sheet(root);
+	fill_sheet(root, 0, sheet, ft_btree_node_count(root));
+	while (*sheet)
+	{
+		printf("%s\n", *sheet);
+		sheet++;
+	}
+
+	printf("\n");
 }
 
 #include <string.h>
@@ -370,9 +425,9 @@ int	main(void)
 	ft_btree_apply_by_level_to_node(root2, &printer_lvl_node);
 	printf("\n");
 
-	ft_btree_print(root, 0);
-	printf("\n");
-	ft_btree_print(root2, 0);
+	printf("node count :%d\n", ft_btree_node_count(root));
+
+	ft_btree_print(root);
 
 	ft_btree_destroy(root);
 	ft_btree_destroy(root2);
