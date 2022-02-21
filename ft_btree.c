@@ -6,7 +6,7 @@
 /*   By: fle-blay <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/02/11 17:30:32 by fle-blay          #+#    #+#             */
-/*   Updated: 2022/02/16 10:25:13 by fle-blay         ###   ########.fr       */
+/*   Updated: 2022/02/21 10:44:10 by fle-blay         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -321,6 +321,7 @@ static void	insert_end(char **sheet, int size_sheet, char *to_insert, int lvl)
 	while (last_index >= 0 && sheet[last_index])
 		last_index--;
 
+	//add les spaces avant d'insert
 	while (i < lvl)
 	{
 		i++;
@@ -337,6 +338,8 @@ void	fill_sheet(t_btree *root, int lvl, char **sheet, int size_sheet)
 	insert_end(sheet, size_sheet, (char *)(root->item), lvl);
 	fill_sheet(root->right, lvl + 1, sheet, size_sheet);
 }
+
+// A changer completement : parcours en right, puis value puis left
 
 void ft_btree_print(t_btree *root)
 {
